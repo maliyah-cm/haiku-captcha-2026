@@ -1,0 +1,111 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Haiku Entry</title>
+        <link rel="stylesheet" href="styles.css">
+
+</head>
+<body id="haiku-entry-page">
+    <main class="prompt-overlay haiku-entry-main">
+        <div class="haiku-entry-content">
+            <h1 class="page-titles haiku-topic-line" id="haiku-entry-heading">
+                <span class="haiku-topic-label">Haiku Topic:</span>
+                <span id="selected-topic" class="content-font haiku-topic-value">(No prompt yet; generate from topic page)</span>
+            </h1>
+
+            <h3 class="page-titles">Instructions:</h3>
+            <ol class="content-text haiku-entry-narrow">
+                <li>Write your haiku in the text box below.</li>
+                <li>Make sure your haiku is 3 lines with syllable counts 5-7-5.</li>
+                <li>Click submit when you’re finished.</li>
+            </ol>
+
+            <label for="haiku-text" class="content-font">Write your haiku in the box below:</label>
+            <textarea id="haiku-text" class="haiku-textarea" rows="12" placeholder="Are you human?&#10;Prove it in your poem.&#10;Remember the structure! "></textarea>
+        </div>
+
+        <div class="haiku-entry-aside" aria-label="Submit your haiku">
+            <img src="img/goat-wcomment.png" alt="Goat" class="goat-img haiku-entry-goat">
+
+            <button type="button" id="submit-haiku" class="image-btn" aria-label="Submit haiku">
+                <img src="img/start-button.png" alt="" width="200px">
+            </button>
+        </div>
+
+        <a href="prompt-gen.html">
+            <img src="img/back-button.png" alt="back button to prompt generation page" width="100px">
+        </a>
+    </main>
+
+    <script>
+        function countSyllables(word) {
+            const w = word.toLowerCase().replace(/[^a-z']/g, '');
+            if (!w) return 0;
+            if (w.length <= 3) return 1;
+            const syl = w
+                .replace(/(?:[^laeiouy]es|ed|[^laeiouy]e)$/, '')
+                .replace(/^y/, '')
+                .match(/[aeiouy]{1,2}/g);
+            return Math.max(1, syl ? syl.length : 1);
+        }
+
+        function checkHaiku(text) {
+            const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+            if (lines.length !== 3) return { valid: false, message: 'Haiku needs exactly 3 lines.' };
+
+            const expected = [5, 7, 5];
+            const actual = lines.map(line => {
+                const words = line.split(/\s+/).filter(Boolean);
+                return words.reduce((sum, word) => sum + countSyllables(word), 0);
+            });
+
+            const errors = actual.map((count, i) => count === expected[i] ? null : `Line ${i + 1}: ${count} syllables (expected ${expected[i]})`).filter(Boolean);
+            if (errors.length) {
+                return { valid: false, message: errors.join(' | ') };
+            }
+            return { valid: true, message: 'Valid haiku! 5-7-5 count achieved.' };
+        }
+
+        const selectedTopic = document.getElementById('selected-topic');
+        const haikuText = document.getElementById('haiku-text');
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedTopic = localStorage.getItem('haikuTopic');
+            selectedTopic.textContent = savedTopic ? savedTopic : '(No prompt yet; go back and generate one)';
+        });
+
+        const STORAGE_KEY = 'haikuSubmissions';
+
+        function saveHaikuSubmission(text) {
+            const normalized = text.trim();
+            if (!normalized) return;
+            let list = [];
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                if (raw) list = JSON.parse(raw);
+                if (!Array.isArray(list)) list = [];
+            } catch {
+                list = [];
+            }
+            list.push({
+                text: normalized,
+                at: Date.now()
+            });
+            /* Keep last 80 so localStorage stays small */
+            if (list.length > 80) list = list.slice(-80);
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+        }
+
+        document.getElementById('submit-haiku').addEventListener('click', () => {
+            const result = checkHaiku(haikuText.value);
+            if (result.valid) {
+                saveHaikuSubmission(haikuText.value);
+                window.location.href = 'haiku-end.html';
+            } else {
+                window.location.href = 'wrong-haiku.html';
+            }
+        });
+    </script>
+</body>
+</html>
